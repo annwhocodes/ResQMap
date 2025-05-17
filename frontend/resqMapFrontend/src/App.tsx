@@ -46,7 +46,7 @@ function App() {
           isOffline={isOffline} 
         />
         
-        <main className="flex-1 overflow-hidden">
+        <main className="flex-1 overflow-auto">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/hazards" element={<HazardReports />} />
