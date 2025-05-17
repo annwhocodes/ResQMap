@@ -11,6 +11,7 @@ interface ButtonProps {
   className?: string;
   icon?: React.ReactNode;
   type?: 'button' | 'submit' | 'reset';
+  active?: boolean; // Added active prop for selected state
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -23,21 +24,22 @@ const Button: React.FC<ButtonProps> = ({
   className = '',
   icon,
   type = 'button',
+  active = false, // Default is not active
 }) => {
   const getVariantClasses = () => {
     switch (variant) {
       case 'primary':
-        return `bg-primary-600 hover:bg-primary-700 text-white focus:ring-primary-500`;
+        return `${active ? 'bg-primary-700' : 'bg-primary-600'} hover:bg-primary-700 text-white focus:ring-primary-500`;
       case 'danger':
-        return `bg-danger-600 hover:bg-danger-700 text-white focus:ring-danger-500`;
+        return `${active ? 'bg-danger-700' : 'bg-danger-600'} hover:bg-danger-700 text-white focus:ring-danger-500`;
       case 'warning':
-        return `bg-warning-600 hover:bg-warning-700 text-white focus:ring-warning-500`;
+        return `${active ? 'bg-warning-700' : 'bg-warning-600'} hover:bg-warning-700 text-white focus:ring-warning-500`;
       case 'success':
-        return `bg-success-600 hover:bg-success-700 text-white focus:ring-success-500`;
+        return `${active ? 'bg-success-700' : 'bg-success-600'} hover:bg-success-700 text-white focus:ring-success-500`;
       case 'outline':
-        return `border border-neutral-300 bg-white hover:bg-neutral-50 text-neutral-700 focus:ring-primary-500`;
+        return `border ${active ? 'bg-neutral-100 border-neutral-400' : 'border-neutral-300 bg-white'} hover:bg-neutral-50 text-neutral-700 focus:ring-primary-500`;
       default:
-        return `bg-primary-600 hover:bg-primary-700 text-white focus:ring-primary-500`;
+        return `${active ? 'bg-primary-700' : 'bg-primary-600'} hover:bg-primary-700 text-white focus:ring-primary-500`;
     }
   };
 
@@ -61,6 +63,7 @@ const Button: React.FC<ButtonProps> = ({
         ${getVariantClasses()} 
         ${getSizeClasses()} 
         ${fullWidth ? 'w-full' : ''}
+        ${active ? 'shadow-inner' : ''}
         rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-offset-2
         transition duration-150 ease-in-out
         flex items-center justify-center
@@ -69,6 +72,7 @@ const Button: React.FC<ButtonProps> = ({
       `}
       disabled={disabled}
       onClick={onClick}
+      aria-pressed={active}
     >
       {icon && <span className="mr-2">{icon}</span>}
       {children}

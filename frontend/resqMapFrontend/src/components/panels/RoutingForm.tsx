@@ -184,42 +184,36 @@ const RoutingForm: React.FC<RoutingFormProps> = ({ onRouteGenerate, className })
             Travel Mode
           </label>
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
               onClick={() => setTravelMode('driving')}
-              className={`flex-1 py-2 px-3 flex items-center justify-center gap-1 rounded-md border ${
-                travelMode === 'driving'
-                  ? 'bg-primary-50 border-primary-300 text-primary-700'
-                  : 'border-neutral-300 text-neutral-700'
-              }`}
+              variant="outline"
+              active={travelMode === 'driving'}
+              className="flex-1 py-2 px-3 flex items-center justify-center gap-1"
             >
-              <Car className="h-4 w-4" />
+              <Car className={`h-4 w-4 ${travelMode === 'driving' ? 'text-primary-600' : ''}`} />
               <span>Driving</span>
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => setTravelMode('cycling')}
-              className={`flex-1 py-2 px-3 flex items-center justify-center gap-1 rounded-md border ${
-                travelMode === 'cycling'
-                  ? 'bg-primary-50 border-primary-300 text-primary-700'
-                  : 'border-neutral-300 text-neutral-700'
-              }`}
+              variant="outline"
+              active={travelMode === 'cycling'}
+              className="flex-1 py-2 px-3 flex items-center justify-center gap-1"
             >
-              <Bike className="h-4 w-4" />
+              <Bike className={`h-4 w-4 ${travelMode === 'cycling' ? 'text-primary-600' : ''}`} />
               <span>Cycling</span>
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => setTravelMode('walking')}
-              className={`flex-1 py-2 px-3 flex items-center justify-center gap-1 rounded-md border ${
-                travelMode === 'walking'
-                  ? 'bg-primary-50 border-primary-300 text-primary-700'
-                  : 'border-neutral-300 text-neutral-700'
-              }`}
+              variant="outline"
+              active={travelMode === 'walking'}
+              className="flex-1 py-2 px-3 flex items-center justify-center gap-1"
             >
-              <User className="h-4 w-4" />
+              <User className={`h-4 w-4 ${travelMode === 'walking' ? 'text-primary-600' : ''}`} />
               <span>Walking</span>
-            </button>
+            </Button>
           </div>
         </div>
         
@@ -233,21 +227,25 @@ const RoutingForm: React.FC<RoutingFormProps> = ({ onRouteGenerate, className })
               label="Tolls"
               checked={avoidOptions.tolls}
               onChange={() => toggleAvoid('tolls')}
+              variant="danger" // Changed to danger (red) when toggled
             />
             <Toggle
               label="Highways"
               checked={avoidOptions.highways}
               onChange={() => toggleAvoid('highways')}
+              variant="danger" // Changed to danger (red) when toggled
             />
             <Toggle
               label="Flood Areas"
               checked={avoidOptions.floods}
               onChange={() => toggleAvoid('floods')}
+              variant="danger" // Changed to danger (red) when toggled
             />
             <Toggle
               label="Debris/Blockages"
               checked={avoidOptions.debris}
               onChange={() => toggleAvoid('debris')}
+              variant="danger" // Changed to danger (red) when toggled
             />
           </div>
         </div>
@@ -258,28 +256,24 @@ const RoutingForm: React.FC<RoutingFormProps> = ({ onRouteGenerate, className })
             Routing Algorithm
           </label>
           <div className="flex gap-2">
-            <button
+            <Button
               type="button"
               onClick={() => setRouteMode('astar')}
-              className={`flex-1 py-2 px-3 flex items-center justify-center rounded-md border ${
-                routeMode === 'astar'
-                  ? 'bg-primary-50 border-primary-300 text-primary-700'
-                  : 'border-neutral-300 text-neutral-700'
-              }`}
+              variant="outline"
+              active={routeMode === 'astar'}
+              className="flex-1 py-2 px-3 flex items-center justify-center"
             >
               A* Algorithm
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => setRouteMode('ml')}
-              className={`flex-1 py-2 px-3 flex items-center justify-center rounded-md border ${
-                routeMode === 'ml'
-                  ? 'bg-primary-50 border-primary-300 text-primary-700'
-                  : 'border-neutral-300 text-neutral-700'
-              }`}
+              variant="outline"
+              active={routeMode === 'ml'}
+              className="flex-1 py-2 px-3 flex items-center justify-center"
             >
               ML Predictor
-            </button>
+            </Button>
           </div>
         </div>
         
