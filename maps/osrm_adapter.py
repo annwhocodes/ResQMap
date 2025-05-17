@@ -1,59 +1,99 @@
+import json
+import logging
+
+logger = logging.getLogger(__name__)
+
 def extract_route_from_osrm(osrm_response):
     """
-    Enhanced OSRM response parser with detailed waypoints
+    Extract route information from OSRM API response.
+    
+    Args:
+        osrm_response (dict): Response from OSRM API
+        
+    Returns:
+        dict: Extracted route data
     """
     try:
-        if not osrm_response.get('routes'):
-            raise ValueError("No routes found in OSRM response")
-
-        main_route = osrm_response['routes'][0]
-        geometry = main_route['geometry']['coordinates']
+        # Check if response contains routes
+        if 'routes' not in osrm_response or not osrm_response['routes']:
+            logger.warning("No routes found in OSRM response")
+            return {
+                'total_distance': 0,
+                'total_duration': 0,
+                'waypoints': [],
+                'polyline': [],
+                'steps': []
+            }
         
-        # Extract critical points
+        # Get the first route (best match)
+        route = osrm_response['routes'][0]
+        
+        # Extract basic route information
+        total_distance = route.get('distance', 0)
+        total_duration = route.get('duration', 0)
+        
+        # Extract geometry (polyline)
+        polyline = []
+        if 'geometry' in route and 'coordinates' in route['geometry']:
+            polyline = route['geometry']['coordinates']
+        
+        # Extract steps from legs
+        steps = []
+        if 'legs' in route:
+            for leg in route['legs']:
+                if 'steps' in leg:
+                    for step in leg['steps']:
+                        step_data = {
+                            'distance': step.get('distance', 0),
+                            'duration': step.get('duration', 0),
+                            'name': step.get('name', ''),
+                            'instruction': step.get('maneuver', {}).get('instruction', '')
+                        }
+                        
+                        # Extract locations if available
+                        if 'location' in step:
+                            step_data['location'] = step['location']
+                        
+                        steps.append(step_data)
+        
+        # Create waypoints from polyline (simplified)
         waypoints = []
-        seen_locations = set()
-
-        for leg in main_route['legs']:
-            for step in leg['steps']:
-                # Add maneuver points
-                man_location = (
-                    step['maneuver']['location'][1],
-                    step['maneuver']['location'][0]
-                )
-                if man_location not in seen_locations:
+        if polyline:
+            # Use start, end, and some points in between
+            num_points = len(polyline)
+            indices = [0]
+            
+            if num_points > 2:
+                # Add some intermediate points
+                step = max(1, num_points // 10)  # Take about 10% of points
+                indices.extend(range(step, num_points - 1, step))
+            
+            indices.append(num_points - 1)  # Add end point
+            
+            for i, idx in enumerate(indices):
+                if idx < len(polyline):
+                    lng, lat = polyline[idx]
                     waypoints.append({
-                        "name": step.get('name', 'Maneuver'),
-                        "location": {"lat": man_location[0], "lng": man_location[1]},
-                        "type": "maneuver"
+                        'lat': lat,
+                        'lng': lng,
+                        'name': f'Waypoint {i}'
                     })
-                    seen_locations.add(man_location)
-
-                # Add intersections
-                for intersection in step.get('intersections', []):
-                    loc = (intersection['location'][1], intersection['location'][0])
-                    if loc not in seen_locations:
-                        waypoints.append({
-                            "name": "Intersection",
-                            "location": {"lat": loc[0], "lng": loc[1]},
-                            "type": "intersection"
-                        })
-                        seen_locations.add(loc)
-
-        # Add start and end explicitly
-        if geometry:
-            start = {"lat": geometry[0][1], "lng": geometry[0][0]}
-            end = {"lat": geometry[-1][1], "lng": geometry[-1][0]}
-            waypoints.insert(0, {"name": "Start", "location": start, "type": "start"})
-            waypoints.append({"name": "End", "location": end, "type": "destination"})
-
+        
         return {
-            "total_distance": main_route['distance'],
-            "total_duration": main_route['duration'],
-            "waypoints": waypoints,
-            "steps": main_route['legs'][0]['steps'],
-            "polyline": [(coord[1], coord[0]) for coord in geometry]
+            'total_distance': total_distance,
+            'total_duration': total_duration,
+            'waypoints': waypoints,
+            'polyline': polyline,
+            'steps': steps
         }
-
+        
     except Exception as e:
-        print(f"OSRM parsing error: {str(e)}")
-        raise
+        logger.error(f"Error extracting route from OSRM: {e}")
+        # Return minimal valid structure
+        return {
+            'total_distance': 0,
+            'total_duration': 0,
+            'waypoints': [],
+            'polyline': [],
+            'steps': []
+        }

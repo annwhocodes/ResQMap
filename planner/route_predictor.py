@@ -1,116 +1,144 @@
-"""
-ML-based route prediction module.
-This is a simplified implementation that will be replaced with a real ML model.
-"""
-
-import numpy as np
 import torch
-import torch.nn as nn
-import os
-import networkx as nx
+import numpy as np
+import pandas as pd
+import logging
 
-class SimpleRoutePredictor(nn.Module):
-    """
-    A simple neural network for predicting routes between nodes in a graph.
-    """
-    def __init__(self, num_nodes, embedding_dim=64):
-        super(SimpleRoutePredictor, self).__init__()
-        self.node_embeddings = nn.Embedding(num_nodes, embedding_dim)
-        self.fc1 = nn.Linear(embedding_dim * 2, 128)
-        self.fc2 = nn.Linear(128, 64)
-        self.fc3 = nn.Linear(64, num_nodes)
-        self.relu = nn.ReLU()
-        
-    def forward(self, src, dst):
-        # Get embeddings
-        src_emb = self.node_embeddings(src)
-        dst_emb = self.node_embeddings(dst)
-        
-        # Concatenate embeddings
-        x = torch.cat([src_emb, dst_emb], dim=1)
-        
-        # Feed through network
-        x = self.relu(self.fc1(x))
-        x = self.relu(self.fc2(x))
-        x = self.fc3(x)
-        
-        return x
+logger = logging.getLogger(__name__)
 
 def load_model(model_path):
     """
-    Load the route prediction model.
+    Load the route prediction model from a file.
     
     Args:
-        model_path: Path to the saved model
+        model_path (str): Path to the model file
         
     Returns:
-        model: Loaded model
-        node_to_idx: Dictionary mapping node IDs to indices
+        tuple: (model, scaler) or (None, None) if loading fails
     """
-    if not os.path.exists(model_path):
-        # Return a mock model
-        return create_mock_model(), {}
-    
-    # Load model and node mappings
-    checkpoint = torch.load(model_path)
-    model = SimpleRoutePredictor(checkpoint['num_nodes'], checkpoint['embedding_dim'])
-    model.load_state_dict(checkpoint['model_state_dict'])
-    model.eval()
-    
-    node_to_idx = checkpoint['node_to_idx']
-    
-    return model, node_to_idx
-
-def create_mock_model():
-    """Create a mock model for testing"""
-    model = SimpleRoutePredictor(100, 32)
-    return model
-
-def predict_route(model, node_to_idx, start_idx, end_idx, G=None):
-    """
-    Predict a route from start to end node using the ML model.
-    If prediction fails, falls back to A* search.
-    
-    Args:
-        model: Route prediction model
-        node_to_idx: Dictionary mapping node IDs to indices
-        start_idx: Index of start node
-        end_idx: Index of end node
-        G: NetworkX graph (for fallback to A*)
-        
-    Returns:
-        path: List of node IDs representing the predicted path
-    """
-    # This is a simplified mock implementation
-    # In a real system, this would use the actual ML model
-    
     try:
-        # If we have a real model, attempt prediction
-        if isinstance(model, SimpleRoutePredictor):
-            with torch.no_grad():
-                # Convert to tensors
-                src = torch.tensor([start_idx])
-                dst = torch.tensor([end_idx])
-                
-                # Make prediction
-                logits = model(src, dst)
-                
-                # This is simplified: in reality, we'd implement a proper
-                # path extraction from model output
-                path = [start_idx]
-                
-                # Just return a path with start and end for now
-                # In a real scenario, this would extract waypoints from the model
-                path.append(end_idx)
-                
-                # Map back to original node IDs
-                idx_to_node = {v: k for k, v in node_to_idx.items()}
-                mapped_path = [idx_to_node.get(idx, idx) for idx in path]
-                
-                return mapped_path
-    except Exception as e:
-        print(f"ML prediction failed: {str(e)}")
+        logger.info(f"Loading model from {model_path}")
+        checkpoint = torch.load(model_path, map_location=torch.device('cpu'))
         
-    # Fall back to basic path
-    print("Falling back to direct path")
-    return [start_idx, end_idx]
+        class RoutePredictor(torch.nn.Module):
+            def __init__(self, input_size=5, hidden_size=64, output_size=2):
+                super(RoutePredictor, self).__init__()
+                self.model = torch.nn.Sequential(
+                    torch.nn.Linear(input_size, hidden_size),
+                    torch.nn.ReLU(),
+                    torch.nn.Linear(hidden_size, hidden_size),
+                    torch.nn.ReLU(),
+                    torch.nn.Linear(hidden_size, output_size)
+                )
+            
+            def forward(self, x):
+                return self.model(x)
+        
+        model = RoutePredictor()
+        model.load_state_dict(checkpoint['model_state_dict'])
+        model.eval()
+        
+        scaler = checkpoint.get('scaler')
+        logger.info("Model and scaler loaded successfully")
+        return model, scaler
+    except Exception as e:
+        logger.error(f"Error loading model: {e}")
+        return None, None
+
+def predict_route(G, origin_node, dest_node, model=None, scaler=None, earthquake_data=None, tsunami_data=None):
+    """
+    Predict the optimal route using ML model or fallback to A* search.
+    
+    Args:
+        G (networkx.Graph): The graph representing the road network
+        origin_node: The starting node
+        dest_node: The destination node
+        model: The ML model for route prediction
+        scaler: The scaler for normalizing input data
+        earthquake_data: DataFrame containing earthquake data
+        tsunami_data: DataFrame containing tsunami data
+        
+    Returns:
+        list: A list of nodes representing the path from origin to destination
+    """
+    try:
+        # If model or scaler is not available, fallback to A* search
+        if model is None or scaler is None:
+            logger.warning("Model or scaler not available, falling back to A* search")
+            from .astar import astar_search
+            path = astar_search(G, origin_node, dest_node)
+            if path is None:
+                logger.warning("A* search returned None, using direct path")
+                return [origin_node, dest_node]  # Return direct path as fallback
+            return path
+        
+        # Get coordinates for origin and destination
+        origin_lat = G.nodes[origin_node].get('lat', 0)
+        origin_lng = G.nodes[origin_node].get('lng', 0)
+        dest_lat = G.nodes[dest_node].get('lat', 0)
+        dest_lng = G.nodes[dest_node].get('lng', 0)
+        
+        # Check if we have valid coordinates
+        if origin_lat == 0 or origin_lng == 0 or dest_lat == 0 or dest_lng == 0:
+            logger.warning("Invalid coordinates, falling back to A* search")
+            from .astar import astar_search
+            path = astar_search(G, origin_node, dest_node)
+            if path is None:
+                logger.warning("A* search returned None, using direct path")
+                return [origin_node, dest_node]  # Return direct path as fallback
+            return path
+        
+        # Determine if area has more earthquakes or tsunamis
+        event_type_value = 1.0  # Default to earthquake
+        if earthquake_data is not None and tsunami_data is not None:
+            # Simple heuristic: check which type of event is more common in the area
+            earthquake_count = len(earthquake_data)
+            tsunami_count = len(tsunami_data)
+            event_type_value = 1.0 if earthquake_count >= tsunami_count else 0.0
+        
+        # Prepare input for model
+        input_data = np.array([[origin_lat, origin_lng, dest_lat, dest_lng, event_type_value]])
+        
+        # Scale input
+        try:
+            scaled_input = torch.tensor(scaler.transform(input_data), dtype=torch.float32)
+        except Exception as e:
+            logger.error(f"Error scaling input: {e}")
+            from .astar import astar_search
+            path = astar_search(G, origin_node, dest_node)
+            if path is None:
+                logger.warning("A* search returned None, using direct path")
+                return [origin_node, dest_node]  # Return direct path as fallback
+            return path
+        
+        # Get model prediction
+        try:
+            with torch.no_grad():
+                output = model(scaled_input)
+            
+            path_cost, path_safety = output[0].numpy()
+            logger.info(f"Model prediction: path_cost={path_cost}, path_safety={path_safety}")
+            
+            # Use prediction to guide A* search
+            from .astar import astar_search
+            path = astar_search(G, origin_node, dest_node, weight='length', 
+                               safety_weight=path_safety, cost_weight=path_cost)
+            
+            if path is None:
+                logger.warning("A* search with ML weights returned None, using direct path")
+                return [origin_node, dest_node]  # Return direct path as fallback
+                
+            return path
+            
+        except Exception as e:
+            logger.error(f"Error during model prediction: {e}")
+            from .astar import astar_search
+            path = astar_search(G, origin_node, dest_node)
+            if path is None:
+                logger.warning("A* search returned None, using direct path")
+                return [origin_node, dest_node]  # Return direct path as fallback
+            return path
+            
+    except Exception as e:
+        logger.error(f"Error in predict_route: {e}")
+        # Always return at least a direct path
+        return [origin_node, dest_node]
