@@ -1,5 +1,5 @@
 import React from 'react';
-import { COLORS } from '../../constants/theme';
+import { Loader2 } from 'lucide-react';  // spinner icon
 
 interface ButtonProps {
   children: React.ReactNode;
@@ -11,7 +11,8 @@ interface ButtonProps {
   className?: string;
   icon?: React.ReactNode;
   type?: 'button' | 'submit' | 'reset';
-  active?: boolean; // Added active prop for selected state
+  active?: boolean;
+  loading?: boolean;   // spinner flag
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -24,8 +25,12 @@ const Button: React.FC<ButtonProps> = ({
   className = '',
   icon,
   type = 'button',
-  active = false, // Default is not active
+  active = false,
+  loading = false,
 }) => {
+  // When loading, we still want the button to look normal and enabled (unless disabled=true)
+  const isDisabled = disabled;
+
   const getVariantClasses = () => {
     switch (variant) {
       case 'primary':
@@ -60,8 +65,8 @@ const Button: React.FC<ButtonProps> = ({
     <button
       type={type}
       className={`
-        ${getVariantClasses()} 
-        ${getSizeClasses()} 
+        ${getVariantClasses()}
+        ${getSizeClasses()}
         ${fullWidth ? 'w-full' : ''}
         ${active ? 'shadow-inner' : ''}
         rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-offset-2
@@ -70,11 +75,17 @@ const Button: React.FC<ButtonProps> = ({
         disabled:opacity-50 disabled:cursor-not-allowed
         ${className}
       `}
-      disabled={disabled}
+      disabled={isDisabled}
       onClick={onClick}
       aria-pressed={active}
     >
-      {icon && <span className="mr-2">{icon}</span>}
+      {/* Spinner (if loading), but do NOT hide text or icon */}
+      {loading && <Loader2 className="animate-spin h-5 w-5 mr-2" />}
+
+      {/* Your usual icon */}
+      {!loading && icon && <span className="mr-2">{icon}</span>}
+
+      {/* Always show the button text */}
       {children}
     </button>
   );

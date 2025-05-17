@@ -3,23 +3,18 @@ from flask_cors import CORS
 import networkx as nx
 import json
 import traceback
+import math
 
 # Import your existing code
-from planner.graph_builder import build_graph
+from planner.graph_builder import build_graph, haversine_distance
 from planner.astar import astar_search
 try:
     from planner.route_predictor import load_model, predict_route
 except ImportError:
-    # Mock implementation in case ML modules are not available
-    def load_model(*args):
-        return None, {}
-    
-    def predict_route(*args):
-        return []
+    def load_model(*args): return None, {}
+    def predict_route(*args): return []
 
-from visualisation.plot import plot_route
 from maps.osrm_adapter import extract_route_from_osrm
-
 import requests
 
 app = Flask(__name__)
@@ -44,18 +39,17 @@ def geocode_location_osm(location):
     if not results:
         raise ValueError(f"Location '{location}' not found.")
     
-    lat = float(results[0]["lat"])
-    lon = float(results[0]["lon"])
-    return lat, lon
+    return float(results[0]["lat"]), float(results[0]["lon"])
 
 def fetch_osrm_route(origin_coords, destination_coords, profile="driving"):
-    """Call OSRM API for routing."""
+    """Call OSRM API for routing with alternatives."""
     base_url = f"http://router.project-osrm.org/route/v1/{profile}"
     coords = f"{origin_coords[1]},{origin_coords[0]};{destination_coords[1]},{destination_coords[0]}"
     params = {
         "overview": "full",
         "geometries": "geojson",
-        "steps": "true"
+        "steps": "true",
+        "alternatives": "true"  # Critical for multiple routes
     }
     response = requests.get(f"{base_url}/{coords}", params=params)
     response.raise_for_status()
@@ -67,12 +61,10 @@ def fetch_osrm_route(origin_coords, destination_coords, profile="driving"):
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    """Simple health check endpoint."""
     return jsonify({"status": "online"})
 
 @app.route('/api/geocode', methods=['GET'])
 def geocode():
-    """Geocode location to lat/lng."""
     try:
         location = request.args.get('location')
         if not location:
@@ -89,130 +81,94 @@ def geocode():
 
 @app.route('/api/route', methods=['POST'])
 def get_route():
-    """Generate route using A* algorithm or ML model."""
     try:
         data = request.json
+        print("\n[DEBUG] /api/route called")
+        print("[DEBUG] Incoming data:", data)
         
         # Extract parameters
         origin = data.get('origin')
         destination = data.get('destination')
-        routing_mode = data.get('mode', 'astar')  # 'astar' or 'ml'
+        routing_mode = data.get('mode', 'astar')
         travel_mode = data.get('travelMode', 'driving')
-        avoid = data.get('avoid', [])
         
-        # Validate input
+        # Validate and process coordinates
         if not origin or not destination:
             return jsonify({"error": "Missing origin or destination"}), 400
-        
-        # Process origin and destination
-        if isinstance(origin, str):
-            origin_coords = geocode_location_osm(origin)
-        else:
-            origin_coords = (origin.get('lat'), origin.get('lng'))
-            
-        if isinstance(destination, str):
-            dest_coords = geocode_location_osm(destination)
-        else:
-            dest_coords = (destination.get('lat'), destination.get('lng'))
-            
-        # Get route from OSRM
-        osrm_response = fetch_osrm_route(origin_coords, dest_coords, profile=travel_mode)
+
+        origin_coords = geocode_location_osm(origin) if isinstance(origin, str) else \
+            (origin.get('lat'), origin.get('lng'))
+        dest_coords = geocode_location_osm(destination) if isinstance(destination, str) else \
+            (destination.get('lat'), destination.get('lng'))
+
+        print(f"[DEBUG] Origin Coordinates: {origin_coords}")
+        print(f"[DEBUG] Destination Coordinates: {dest_coords}")
+
+        # Get OSRM data
+        osrm_response = fetch_osrm_route(origin_coords, dest_coords, travel_mode)
         route_data = extract_route_from_osrm(osrm_response)
         
-        # Build graph from route data
+        # Build graph
         G = build_graph(route_data)
         
-        # Compute route based on selected mode
-        if routing_mode == 'astar':
-            path = astar_search(G, 0, len(G.nodes)-1)
-        else:  # ML mode
-            try:
-                model, node_to_idx = load_model("route_model.pt")
-                origin_idx = node_to_idx.get(0, 0)
-                dest_idx = node_to_idx.get(len(G.nodes)-1, len(G.nodes)-1)
-                path = predict_route(model, node_to_idx, origin_idx, dest_idx)
-            except Exception as e:
-                return jsonify({
-                    "error": f"ML model error: {str(e)}",
-                    "fallback": "Using A* algorithm instead"
-                }), 500
-                path = astar_search(G, 0, len(G.nodes)-1)
+        # Find closest nodes
+        def find_closest_node(target_lat, lng):
+            return min(G.nodes, key=lambda n: haversine_distance(
+                target_lat, lng, G.nodes[n]['lat'], G.nodes[n]['lng']
+            ))
         
-        # If no path found, return error
-        if not path:
-            return jsonify({"error": "No route could be found"}), 404
-            
-        # Extract waypoints from path
-        waypoints = []
-        for node in path:
-            node_data = G.nodes[node]
-            waypoints.append({
-                "name": node_data.get('name', f"Point {node}"),
-                "lat": node_data.get('lat'),
-                "lng": node_data.get('lng'),
-                "type": node_data.get('type', 'waypoint')
-            })
-            
+        origin_node = find_closest_node(*origin_coords)
+        dest_node = find_closest_node(*dest_coords)
+
+        print(f"[DEBUG] Closest Origin Node: {origin_node}")
+        print(f"[DEBUG] Closest Destination Node: {dest_node}")
+        
+        # Calculate path
+        path = astar_search(G, origin_node, dest_node)
+        print(f"[DEBUG] Computed Path: {path}")
+        
         # Prepare response
-        response = {
+        waypoints = [{
+            "name": G.nodes[node].get('name', f"Point {node}"),
+            "lat": G.nodes[node]['lat'],
+            "lng": G.nodes[node]['lng'],
+            "type": G.nodes[node].get('type', 'waypoint')
+        } for node in path]
+
+        return jsonify({
             "route": {
                 "waypoints": waypoints,
                 "distance": route_data['total_distance'],
                 "duration": route_data['total_duration'],
-                "polyline": route_data.get('polyline', ''),
+                "polyline": route_data.get('polyline', []),
                 "steps": route_data.get('steps', [])
             },
             "metadata": {
                 "algorithm": routing_mode,
                 "travelMode": travel_mode,
-                "avoid": avoid
+                "start_node": origin_node,
+                "end_node": dest_node
             }
-        }
-            
-        return jsonify(response)
+        })
         
     except Exception as e:
+        print("[ERROR] Exception in /api/route:")
         print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
+
 @app.route('/api/hazards', methods=['GET'])
 def get_hazards():
-    """Get all reported hazards."""
-    # This would normally come from a database
-    # For now, return mock data
     mock_hazards = [
         {
             "id": "h1",
             "type": "flood",
-            "severity": "high",
             "lat": 19.072,
             "lng": 72.877,
-            "description": "Road flooded, impassable",
-            "timestamp": "2025-05-16T08:30:00Z"
-        },
-        {
-            "id": "h2",
-            "type": "debris",
-            "severity": "medium",
-            "lat": 18.551,
-            "lng": 73.855,
-            "description": "Fallen trees blocking partial road",
-            "timestamp": "2025-05-16T10:15:00Z"
+            "description": "Road flooded, impassable"
         }
     ]
     return jsonify(mock_hazards)
-
-@app.route('/api/hazards', methods=['POST'])
-def report_hazard():
-    """Report a new hazard."""
-    try:
-        hazard = request.json
-        # This would normally save to a database
-        # For now, just echo it back with a mock ID
-        hazard["id"] = "h" + str(hash(hazard.get("description", "") + str(hazard.get("lat", 0))))[:6]
-        return jsonify(hazard)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

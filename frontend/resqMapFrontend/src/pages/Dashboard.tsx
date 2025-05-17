@@ -53,8 +53,20 @@ const Dashboard: React.FC = () => {
   const handleRouteGenerate = async (source: Location, destination: Location, options: RouteOptions) => {
     setLoading(true);
     setError(null);
+    // Clear previous route to make changes more visible when rerendering with the same coordinates
+    setRoute(null);
     
     try {
+      console.log('Dashboard: Generating route with:', {
+        origin: source,
+        destination: destination,
+        travelMode: options.travelMode,
+        avoid: Object.entries(options.avoidOptions)
+          .filter(([_, value]) => value)
+          .map(([key]) => key),
+        mode: options.mode
+      });
+
       const response = await fetch('http://localhost:5000/api/route', {
         method: 'POST',
         headers: {
@@ -77,6 +89,7 @@ const Dashboard: React.FC = () => {
       }
       
       const routeData = await response.json();
+      console.log('Route data received:', routeData);
       
       // Transform API response to match our Route type
       const newRoute: Route = {

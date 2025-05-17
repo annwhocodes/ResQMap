@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Location, RouteOptions } from '../../types';
 import Button from '../common/Button';
 import Toggle from '../common/Toggle';
@@ -36,9 +36,46 @@ const RoutingForm: React.FC<RoutingFormProps> = ({ onRouteGenerate, className })
   const debouncedSource = useDebounce(source, 500);
   const debouncedDest = useDebounce(destination, 500);
   
+  // Reset coordinates when inputs change
+  useEffect(() => {
+    setSourceCoords(null);
+  }, [source]);
+  
+  useEffect(() => {
+    setDestCoords(null);
+  }, [destination]);
+  
+  // Perform geocoding when debounced values change
+  useEffect(() => {
+    if (debouncedSource && debouncedSource.trim() !== '') {
+      geocodeLocation(debouncedSource)
+        .then(results => {
+          if (results && !results.error) {
+            setSourceResults(Array.isArray(results) ? results : [results]);
+          } else {
+            setSourceResults([]);
+          }
+        });
+    }
+  }, [debouncedSource]);
+  
+  useEffect(() => {
+    if (debouncedDest && debouncedDest.trim() !== '') {
+      geocodeLocation(debouncedDest)
+        .then(results => {
+          if (results && !results.error) {
+            setDestResults(Array.isArray(results) ? results : [results]);
+          } else {
+            setDestResults([]);
+          }
+        });
+    }
+  }, [debouncedDest]);
+  
   // Geocode API call
   const geocodeLocation = async (query: string): Promise<any> => {
     try {
+      console.log(`Geocoding: ${query}`);
       const response = await fetch(`http://localhost:5000/api/geocode?location=${encodeURIComponent(query)}`);
       if (!response.ok) {
         throw new Error('Geocoding failed');
@@ -57,28 +94,38 @@ const RoutingForm: React.FC<RoutingFormProps> = ({ onRouteGenerate, className })
     setError(null);
     
     try {
-      // Make sure we have coordinates
-      let start = sourceCoords;
-      let end = destCoords;
+      // Always fresh geocode both locations to get new coordinates
+      let start: Location | null = null;
+      let end: Location | null = null;
       
-      if (!start && source) {
-        const result = await geocodeLocation(source);
-        if (result && !result.error) {
+      // Get source coordinates
+      if (source) {
+        const sourceResult = await geocodeLocation(source);
+        if (sourceResult && !sourceResult.error) {
+          const result = Array.isArray(sourceResult) ? sourceResult[0] : sourceResult;
           start = { lat: result.lat, lng: result.lng };
           setSourceCoords(start);
+          console.log('Source coordinates:', start);
         } else {
           throw new Error(`Could not find location: ${source}`);
         }
+      } else {
+        throw new Error('Please provide a starting location');
       }
       
-      if (!end && destination) {
-        const result = await geocodeLocation(destination);
-        if (result && !result.error) {
+      // Get destination coordinates
+      if (destination) {
+        const destResult = await geocodeLocation(destination);
+        if (destResult && !destResult.error) {
+          const result = Array.isArray(destResult) ? destResult[0] : destResult;
           end = { lat: result.lat, lng: result.lng };
           setDestCoords(end);
+          console.log('Destination coordinates:', end);
         } else {
           throw new Error(`Could not find location: ${destination}`);
         }
+      } else {
+        throw new Error('Please provide a destination');
       }
       
       if (!start || !end) {
@@ -94,29 +141,7 @@ const RoutingForm: React.FC<RoutingFormProps> = ({ onRouteGenerate, className })
         mode: routeMode
       };
       
-      // Call the API to generate route
-      const response = await fetch('http://localhost:5000/api/route', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          origin: start,
-          destination: end,
-          travelMode,
-          avoid: Object.entries(avoidOptions)
-            .filter(([_, value]) => value)
-            .map(([key]) => key),
-          mode: routeMode
-        }),
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to generate route');
-      }
-      
-      const routeData = await response.json();
+      console.log('Generating route with:', { start, end, options });
       
       // Forward the route to parent component
       onRouteGenerate(start, end, options);
@@ -160,6 +185,11 @@ const RoutingForm: React.FC<RoutingFormProps> = ({ onRouteGenerate, className })
               className="w-full p-2 border border-neutral-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               required
             />
+            {sourceCoords && (
+              <div className="text-xs text-green-600 mt-1">
+                ✓ Location found: {sourceCoords.lat.toFixed(6)}, {sourceCoords.lng.toFixed(6)}
+              </div>
+            )}
           </div>
           
           <div>
@@ -175,6 +205,11 @@ const RoutingForm: React.FC<RoutingFormProps> = ({ onRouteGenerate, className })
               className="w-full p-2 border border-neutral-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               required
             />
+            {destCoords && (
+              <div className="text-xs text-green-600 mt-1">
+                ✓ Location found: {destCoords.lat.toFixed(6)}, {destCoords.lng.toFixed(6)}
+              </div>
+            )}
           </div>
         </div>
       
@@ -285,16 +320,19 @@ const RoutingForm: React.FC<RoutingFormProps> = ({ onRouteGenerate, className })
           </div>
         )}
         
-        {/* Submit Button */}
-        <Button
-          variant="primary"
-          type="submit"
-          fullWidth
-          disabled={loading}
-          loading={loading}
-        >
-          Generate Best Route
-        </Button>
+        {/* Submit Button - Fixed styling to make it more visible */}
+        <div className="mt-6">
+          <Button
+            variant="outline"
+            type="submit"
+            fullWidth
+            loading={loading}
+            size="lg"
+            className="py-3 font-semibold shadow-md text-black bg-primary-400 hover:bg-primary-500 border-primary-500"
+          >
+            Generate Best Route
+          </Button>
+        </div>
       </form>
     </div>
   );

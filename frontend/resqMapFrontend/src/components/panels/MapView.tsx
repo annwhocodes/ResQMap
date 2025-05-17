@@ -6,7 +6,6 @@ import { Route } from '../../types';
 import { AlertTriangle } from 'lucide-react';
 
 // Fix the Leaflet icon issue
-delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
@@ -35,24 +34,48 @@ const MapRecenter = ({ route }: { route: Route | null }) => {
   const map = useMap();
   
   useEffect(() => {
-    if (route && route.waypoints && route.waypoints.length > 0) {
-      const bounds = route.waypoints.map(wp => [wp.lat, wp.lng]);
-      map.fitBounds(bounds);
+    if (route && route.waypoints && route.waypoints.length > 1) {
+      // Add a unique key based on the start and end points to force re-rendering
+      const bounds = route.waypoints.map(wp => [wp.lat, wp.lng] as [number, number]);
+      console.log('Map fitting to bounds:', bounds);
+      map.fitBounds(L.latLngBounds(bounds), { padding: [50, 50] });
     }
   }, [route, map]);
   
   return null;
 };
 
+// Component to render the route with a key to force re-render
+const RoutePolyline = ({ route, routeKey }: { route: Route, routeKey: string }) => {
+  const routeCoordinates = route.waypoints.map(wp => [wp.lat, wp.lng] as [number, number]);
+  console.log(`Rendering route with key: ${routeKey}, points: ${routeCoordinates.length}`);
+  
+  return (
+    <Polyline 
+      key={routeKey}
+      positions={routeCoordinates}
+      color="#3B82F6"
+      weight={5}
+      opacity={0.7}
+    />
+  );
+};
+
 const MapView: React.FC<MapViewProps> = ({ route, hazards, className }) => {
   const [mapLoaded, setMapLoaded] = useState(false);
   const mapRef = useRef<L.Map | null>(null);
+  const routeKey = route ? `${route.waypoints[0].lat}-${route.waypoints[0].lng}-${route.waypoints[route.waypoints.length-1].lat}-${route.waypoints[route.waypoints.length-1].lng}` : 'no-route';
 
   // Default center (Mumbai)
   const defaultCenter: [number, number] = [19.0760, 72.8777];
   
-  // Process route for display
-  const routeCoordinates = route?.waypoints?.map(wp => [wp.lat, wp.lng] as [number, number]) || [];
+  // Log the route when it changes
+  useEffect(() => {
+    if (route) {
+      console.log('Map received new route:', route);
+      console.log('Route key:', routeKey);
+    }
+  }, [route, routeKey]);
 
   return (
     <div className={`relative rounded-lg border border-neutral-200 shadow-md overflow-hidden ${className}`}>
@@ -65,7 +88,9 @@ const MapView: React.FC<MapViewProps> = ({ route, hazards, className }) => {
         </div>
       )}
 
+      {/* Using key on the MapContainer to force complete re-render when route changes */}
       <MapContainer
+        key={`map-${routeKey}`}
         center={defaultCenter}
         zoom={10}
         style={{ height: '100%', width: '100%' }}
@@ -78,23 +103,25 @@ const MapView: React.FC<MapViewProps> = ({ route, hazards, className }) => {
         />
         
         {/* Render the route if available */}
-        {routeCoordinates.length > 0 && (
+        {route && route.waypoints && route.waypoints.length > 0 && (
           <>
-            <Polyline 
-              positions={routeCoordinates}
-              color="#3B82F6"
-              weight={5}
-              opacity={0.7}
-            />
+            {/* Using the RoutePolyline component with the key */}
+            <RoutePolyline route={route} routeKey={routeKey} />
             
             {/* Start marker */}
-            <Marker position={routeCoordinates[0]}>
-              <Popup>Start: {route?.waypoints[0].name}</Popup>
+            <Marker 
+              key={`start-${routeKey}`} 
+              position={[route.waypoints[0].lat, route.waypoints[0].lng]}
+            >
+              <Popup>Start: {route.waypoints[0].name || 'Starting Point'}</Popup>
             </Marker>
             
             {/* End marker */}
-            <Marker position={routeCoordinates[routeCoordinates.length - 1]}>
-              <Popup>Destination: {route?.waypoints[routeCoordinates.length - 1].name}</Popup>
+            <Marker 
+              key={`end-${routeKey}`}
+              position={[route.waypoints[route.waypoints.length - 1].lat, route.waypoints[route.waypoints.length - 1].lng]}
+            >
+              <Popup>Destination: {route.waypoints[route.waypoints.length - 1].name || 'Destination'}</Popup>
             </Marker>
           </>
         )}
