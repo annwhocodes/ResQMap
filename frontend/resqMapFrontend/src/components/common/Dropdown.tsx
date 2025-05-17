@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { SHADOWS } from '../../constants/theme';
 
 interface DropdownOption {
   value: string;
@@ -12,9 +11,7 @@ interface DropdownProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
-  disabled?: boolean;
   className?: string;
-  label?: string;
 }
 
 const Dropdown: React.FC<DropdownProps> = ({
@@ -22,21 +19,21 @@ const Dropdown: React.FC<DropdownProps> = ({
   value,
   onChange,
   placeholder = 'Select an option',
-  disabled = false,
   className = '',
-  label,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const selectedOption = options.find((option) => option.value === value);
+  // Find the selected option based on value
+  const selectedOption = options.find(option => option.value === value);
 
+  // Close dropdown when clicking outside
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
-    }
+    };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
@@ -44,77 +41,66 @@ const Dropdown: React.FC<DropdownProps> = ({
     };
   }, []);
 
-  return (
-    <div className={`relative ${className}`}>
-      {label && (
-        <label className="block text-sm font-medium text-neutral-700 mb-1">
-          {label}
-        </label>
-      )}
-      <div
-        ref={dropdownRef}
-        className={`
-          relative w-full cursor-default rounded-lg bg-white py-2.5 pl-3 pr-10 text-left 
-          border border-neutral-300 focus:border-primary-500 focus:outline-none focus:ring-1 
-          focus:ring-primary-500 shadow-sm
-          ${disabled ? 'bg-neutral-100 opacity-75 cursor-not-allowed' : 'cursor-pointer'}
-        `}
-        onClick={() => !disabled && setIsOpen(!isOpen)}
-      >
-        <span className="block truncate">
-          {selectedOption ? (
-            <div className="flex items-center">
-              {selectedOption.icon && <span className="mr-2">{selectedOption.icon}</span>}
-              {selectedOption.label}
-            </div>
-          ) : (
-            <span className="text-neutral-500">{placeholder}</span>
-          )}
-        </span>
-        <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-          <svg
-            className="h-5 w-5 text-neutral-400"
-            viewBox="0 0 20 20"
-            fill="none"
-            stroke="currentColor"
-          >
-            <path
-              d="M7 7l3 3 3-3"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-      </div>
+  // Handle option selection
+  const handleOptionSelect = (optionValue: string) => {
+    onChange(optionValue);
+    setIsOpen(false);
+  };
 
+  return (
+    <div ref={dropdownRef} className={`relative ${className}`}>
+      {/* Dropdown trigger button */}
+      <button
+        type="button"
+        className="w-full flex items-center justify-between bg-white border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+        onClick={() => setIsOpen(!isOpen)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        <div className="flex items-center">
+          {selectedOption?.icon && <span className="mr-2">{selectedOption.icon}</span>}
+          <span className="truncate">
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
+        </div>
+        <svg
+          className={`h-5 w-5 text-neutral-400 transition-transform ${isOpen ? 'transform rotate-180' : ''}`}
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+
+      {/* Dropdown menu */}
       {isOpen && (
         <div
-          className={`
-            absolute z-10 mt-1 w-full rounded-md bg-white shadow-lg
-            max-h-60 overflow-auto focus:outline-none py-1
-          `}
-          style={{ boxShadow: SHADOWS.lg }}
+          className="absolute z-30 w-full mt-1 bg-white border border-neutral-200 rounded-md shadow-lg max-h-60 overflow-y-auto"
+          role="listbox"
         >
-          <div className="py-1">
+          <ul className="py-1">
             {options.map((option) => (
-              <div
+              <li
                 key={option.value}
-                className={`
-                  flex items-center px-3 py-2 text-sm cursor-pointer 
-                  hover:bg-primary-100 
-                  ${value === option.value ? 'bg-primary-50 text-primary-900' : 'text-neutral-900'}
-                `}
-                onClick={() => {
-                  onChange(option.value);
-                  setIsOpen(false);
-                }}
+                role="option"
+                aria-selected={value === option.value}
+                className={`flex items-center px-3 py-2 text-sm cursor-pointer transition-colors
+                  ${value === option.value
+                    ? 'bg-primary-50 text-primary-800'
+                    : 'hover:bg-neutral-50'
+                  }`}
+                onClick={() => handleOptionSelect(option.value)}
               >
                 {option.icon && <span className="mr-2">{option.icon}</span>}
-                {option.label}
-              </div>
+                <span>{option.label}</span>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       )}
     </div>

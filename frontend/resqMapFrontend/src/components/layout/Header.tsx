@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Navigation, Droplet, AlertTriangle, Settings, HelpCircle, FileText } from 'lucide-react';
 import Dropdown from '../common/Dropdown';
@@ -21,6 +21,17 @@ const Header: React.FC<HeaderProps> = ({ role, setRole, isOffline }) => {
     { value: 'custom', label: 'Custom', icon: <Navigation className="h-5 w-5 text-neutral-600" /> },
   ];
 
+  // Debug: Log role changes
+  useEffect(() => {
+    console.log('Current role in Header:', role);
+  }, [role]);
+
+  // Handler for role changes
+  const handleRoleChange = (newRole: string) => {
+    console.log('Role changed to:', newRole);
+    setRole(newRole as UserRole);
+  };
+
   return (
     <header className="bg-white border-b border-neutral-200 shadow-sm py-3 px-4">
       <div className="container mx-auto flex items-center justify-between">
@@ -42,7 +53,7 @@ const Header: React.FC<HeaderProps> = ({ role, setRole, isOffline }) => {
             <Dropdown
               options={roleOptions}
               value={role}
-              onChange={(value) => setRole(value as UserRole)}
+              onChange={handleRoleChange}
             />
           </div>
           

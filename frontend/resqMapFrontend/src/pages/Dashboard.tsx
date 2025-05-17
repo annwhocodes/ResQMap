@@ -116,11 +116,12 @@ const Dashboard: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col md:flex-row p-4 gap-4 h-full">
-      <div className="w-full md:w-96 flex-shrink-0 overflow-y-auto">
+    <div className="relative flex flex-col md:flex-row p-4 gap-4 h-full">
+      {/* Sidebar with higher z-index */}
+      <div className="relative z-10 w-full md:w-96 flex-shrink-0 overflow-y-auto bg-white shadow-md rounded-lg">
         <RoutingForm 
           onRouteGenerate={handleRouteGenerate} 
-          className="sticky top-0"
+          className="sticky top-0 bg-white z-20 p-4" // Added z-20 and bg-white
         />
         
         {/* Show loading and error states */}
@@ -171,11 +172,12 @@ const Dashboard: React.FC = () => {
         )}
       </div>
       
-      <div className="flex-1 min-h-[400px] md:min-h-0">
+      {/* Map container with lower z-index */}
+      <div className="relative z-0 flex-1 min-h-[400px] md:min-h-0">
         <MapView 
           route={route} 
           hazards={hazards} 
-          className="h-full"
+          className="h-full w-full rounded-lg"
         />
       </div>
     </div>
