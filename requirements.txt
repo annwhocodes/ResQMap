@@ -1,0 +1,11 @@
+streamlit
+networkx
+requests
+plotly
+matplotlib
+python-dotenv
+pytest
+polyline
+torch
+scikit-learn
+pandas
