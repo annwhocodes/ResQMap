@@ -1,0 +1,17 @@
+{
+  "created_at": "2025-05-17T17:39:52.773724",
+  "model_file": "route_predictor_model.pth",
+  "scaler_file": "scaler.pkl",
+  "graph_file": "graph_cache.json",
+  "routes_file": "routes_cache.json",
+  "features": [
+    "origin_lat",
+    "origin_lng",
+    "destination_lat",
+    "destination_lng",
+    "avoid_tolls",
+    "avoid_highways",
+    "avoid_floods",
+    "avoid_debris"
+  ]
+}

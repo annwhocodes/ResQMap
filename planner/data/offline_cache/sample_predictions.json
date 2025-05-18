@@ -1,0 +1,232 @@
+[
+  {
+    "id": 1,
+    "input": {
+      "origin": {
+        "lat": 28.6139,
+        "lng": 77.209
+      },
+      "destination": {
+        "lat": 19.076,
+        "lng": 72.8777
+      },
+      "avoid": {
+        "tolls": false,
+        "highways": false,
+        "floods": true,
+        "debris": true
+      }
+    },
+    "prediction": {
+      "distance": 38551.2421875,
+      "safety": 19.442068099975586
+    }
+  },
+  {
+    "id": 2,
+    "input": {
+      "origin": {
+        "lat": 13.0827,
+        "lng": 80.2707
+      },
+      "destination": {
+        "lat": 12.9716,
+        "lng": 77.5946
+      },
+      "avoid": {
+        "tolls": true,
+        "highways": false,
+        "floods": false,
+        "debris": false
+      }
+    },
+    "prediction": {
+      "distance": 40687.09375,
+      "safety": 20.51287269592285
+    }
+  },
+  {
+    "id": 3,
+    "input": {
+      "origin": {
+        "lat": 22.5726,
+        "lng": 88.3639
+      },
+      "destination": {
+        "lat": 17.385,
+        "lng": 78.4867
+      },
+      "avoid": {
+        "tolls": false,
+        "highways": true,
+        "floods": false,
+        "debris": false
+      }
+    },
+    "prediction": {
+      "distance": 42844.6953125,
+      "safety": 21.602815628051758
+    }
+  },
+  {
+    "id": 4,
+    "input": {
+      "origin": {
+        "lat": 11.354786527494511,
+        "lng": 84.71808422374923
+      },
+      "destination": {
+        "lat": 27.348106031893156,
+        "lng": 93.88146838475902
+      },
+      "avoid": {
+        "tolls": false,
+        "highways": false,
+        "floods": false,
+        "debris": false
+      }
+    },
+    "prediction": {
+      "distance": 46348.3359375,
+      "safety": 23.353368759155273
+    }
+  },
+  {
+    "id": 5,
+    "input": {
+      "origin": {
+        "lat": 31.671318161612803,
+        "lng": 73.8898683679459
+      },
+      "destination": {
+        "lat": 17.16745436277352,
+        "lng": 79.59503893039985
+      },
+      "avoid": {
+        "tolls": true,
+        "highways": false,
+        "floods": true,
+        "debris": false
+      }
+    },
+    "prediction": {
+      "distance": 40064.76171875,
+      "safety": 20.209352493286133
+    }
+  },
+  {
+    "id": 6,
+    "input": {
+      "origin": {
+        "lat": 20.75175385029798,
+        "lng": 82.6454613798874
+      },
+      "destination": {
+        "lat": 34.09002025538652,
+        "lng": 78.89956450682124
+      },
+      "avoid": {
+        "tolls": true,
+        "highways": false,
+        "floods": false,
+        "debris": false
+      }
+    },
+    "prediction": {
+      "distance": 41607.96484375,
+      "safety": 20.96282386779785
+    }
+  },
+  {
+    "id": 7,
+    "input": {
+      "origin": {
+        "lat": 34.80785000625134,
+        "lng": 86.69789424030293
+      },
+      "destination": {
+        "lat": 14.364545166260516,
+        "lng": 86.53327671257387
+      },
+      "avoid": {
+        "tolls": false,
+        "highways": false,
+        "floods": true,
+        "debris": false
+      }
+    },
+    "prediction": {
+      "distance": 44942.1953125,
+      "safety": 22.67213249206543
+    }
+  },
+  {
+    "id": 8,
+    "input": {
+      "origin": {
+        "lat": 21.611763599856594,
+        "lng": 74.7115463168518
+      },
+      "destination": {
+        "lat": 16.627167509070002,
+        "lng": 96.9335815284033
+      },
+      "avoid": {
+        "tolls": false,
+        "highways": false,
+        "floods": false,
+        "debris": true
+      }
+    },
+    "prediction": {
+      "distance": 45552.2109375,
+      "safety": 22.96925163269043
+    }
+  },
+  {
+    "id": 9,
+    "input": {
+      "origin": {
+        "lat": 29.296517850433354,
+        "lng": 86.5005223873801
+      },
+      "destination": {
+        "lat": 10.250884740718543,
+        "lng": 91.52099806426045
+      },
+      "avoid": {
+        "tolls": true,
+        "highways": false,
+        "floods": false,
+        "debris": true
+      }
+    },
+    "prediction": {
+      "distance": 46449.19140625,
+      "safety": 23.429447174072266
+    }
+  },
+  {
+    "id": 10,
+    "input": {
+      "origin": {
+        "lat": 33.44598863641975,
+        "lng": 96.04447225156194
+      },
+      "destination": {
+        "lat": 20.171145936207992,
+        "lng": 82.63246665109901
+      },
+      "avoid": {
+        "tolls": false,
+        "highways": true,
+        "floods": false,
+        "debris": true
+      }
+    },
+    "prediction": {
+      "distance": 46111.51953125,
+      "safety": 23.253549575805664
+    }
+  }
+]

@@ -7,6 +7,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Node dependencies and build
 node_modules
 dist
 dist-ssr
@@ -22,4 +23,60 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables
 .env
+
+# Python cache files
+__pycache__
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+
+# Data files - keep directory structure but ignore large files
+*.csv
+*.json
+!planner/data/routes_cache.json
+!planner/data/graph_cache.json
+!planner/data/metadata.json
+!planner/data/sample_predictions.json
+!planner/data/sample_routes.json
+
+# Model files - keep specific models
+*.pth
+!planner/data/route_predictor_model.pth
+!planner/data/best_model.pth
+
+# Keep scaler files
+!planner/data/scaler.pkl
+!planner/data/scaler.pth
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*.ipynb
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Flask session files
+flask_session/
+
+# Offline cache directory structure - keep but ignore contents
+planner/data/offline_cache/*
+!planner/data/offline_cache/.gitkeep
+
+# Processed data directory structure - keep but ignore contents
+planner/data/processed/*
+!planner/data/processed/.gitkeep
+
+# Keep specific numpy files
+!planner/data/features.npy
+!planner/data/labels.npy
