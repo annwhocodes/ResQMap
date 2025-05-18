@@ -8,6 +8,7 @@ import HazardMap from '../components/hazards/HazardMap';
 import WeatherCard from '../components/hazards/WeatherCard';
 import SafetyScoreCard from '../components/hazards/SafetyScoreCard';
 
+
 const HazardReports: React.FC = () => {
   // State for hazards and data
   const [hazards, setHazards] = useState<Hazard[]>([]);
@@ -166,7 +167,7 @@ const HazardReports: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-7xl mx-auto min-h-screen overflow-auto">
       <h1 className="text-2xl font-bold mb-6">Hazard Reports</h1>
       
       <div className="bg-white rounded-lg shadow-md p-6 mb-8 border border-neutral-200">

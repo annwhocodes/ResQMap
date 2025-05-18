@@ -1,109 +1,97 @@
-import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useCallback } from 'react';
 import debounce from 'lodash/debounce';
 
 export interface SearchResult {
+  id: string;
   name: string;
   lat: number;
   lng: number;
-  country?: string;
-  state?: string;
-}
-
-interface LocationSearchState {
-  query: string;
-  results: SearchResult[];
-  loading: boolean;
-  error: string | null;
-  selectedLocation: SearchResult | null;
+  type: string;
+  address: string;
 }
 
 export const useLocationSearch = () => {
-  const [state, setState] = useState<LocationSearchState>({
-    query: '',
-    results: [],
-    loading: false,
-    error: null,
-    selectedLocation: null,
-  });
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<SearchResult | null>(null);
 
-  // Create a debounced search function
-  const debouncedSearch = useRef(
+  // Debounced search function
+  const debouncedSearch = useCallback(
     debounce(async (searchQuery: string) => {
-      if (!searchQuery || searchQuery.length < 2) {
-        setState(prev => ({ ...prev, results: [], loading: false }));
+      if (!searchQuery || searchQuery.length < 3) {
+        setResults([]);
+        setLoading(false);
         return;
       }
 
-      setState(prev => ({ ...prev, loading: true, error: null }));
+      setLoading(true);
+      setError(null);
 
       try {
-        // Using OpenStreetMap Nominatim API for geocoding
-        const response = await axios.get(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5`,
-          {
-            headers: {
-              'Accept-Language': 'en',
-              'User-Agent': 'ResQMap-App'
-            }
-          }
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+            searchQuery
+          )}&limit=5`
         );
 
-        const searchResults: SearchResult[] = response.data.map((item: any) => ({
+        if (!response.ok) {
+          throw new Error('Failed to fetch location data');
+        }
+
+        const data = await response.json();
+        
+        const formattedResults: SearchResult[] = data.map((item: any) => ({
+          id: item.place_id,
           name: item.display_name.split(',')[0],
           lat: parseFloat(item.lat),
           lng: parseFloat(item.lon),
-          country: item.address?.country,
-          state: item.address?.state
+          type: item.type,
+          address: item.display_name
         }));
 
-        setState(prev => ({
-          ...prev,
-          results: searchResults,
-          loading: false
-        }));
-      } catch (error) {
-        setState(prev => ({
-          ...prev,
-          error: 'Failed to search for locations',
-          loading: false
-        }));
+        setResults(formattedResults);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+        setResults([]);
+      } finally {
+        setLoading(false);
       }
-    }, 500)
-  ).current;
+    }, 500),
+    []
+  );
 
-  // Clean up debounce on unmount
   useEffect(() => {
+    debouncedSearch(query);
+    
     return () => {
       debouncedSearch.cancel();
     };
-  }, [debouncedSearch]);
+  }, [query, debouncedSearch]);
 
   const handleQueryChange = (newQuery: string) => {
-    setState(prev => ({ ...prev, query: newQuery }));
-    debouncedSearch(newQuery);
+    setQuery(newQuery);
   };
 
   const handleSelectLocation = (location: SearchResult) => {
-    setState(prev => ({
-      ...prev,
-      selectedLocation: location,
-      query: `${location.name}${location.state ? `, ${location.state}` : ''}${location.country ? `, ${location.country}` : ''}`,
-      results: []
-    }));
+    setSelectedLocation(location);
+    setQuery(location.name);
+    setResults([]);
   };
 
   const clearSearch = () => {
-    setState(prev => ({
-      ...prev,
-      query: '',
-      results: [],
-      selectedLocation: null
-    }));
+    setQuery('');
+    setResults([]);
+    setSelectedLocation(null);
   };
 
   return {
-    ...state,
+    query,
+    results,
+    loading,
+    error,
+    selectedLocation,
     handleQueryChange,
     handleSelectLocation,
     clearSearch

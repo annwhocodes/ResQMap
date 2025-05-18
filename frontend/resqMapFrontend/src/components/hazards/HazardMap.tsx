@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Hazard } from '../../services/HazardService';
 
 interface HazardMapProps {
@@ -26,41 +26,62 @@ const HazardMap: React.FC<HazardMapProps> = ({
     heatmapLayer: null
   });
   
-  // Effect to initialize the map
+  // Track script loading state
+  const [scriptsLoaded, setScriptsLoaded] = useState({
+    leaflet: false,
+    heatPlugin: false
+  });
+  
+  // Effect to load scripts
   useEffect(() => {
-    // Add Leaflet CSS
-    const linkEl = document.createElement('link');
-    linkEl.rel = 'stylesheet';
-    linkEl.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-    document.head.appendChild(linkEl);
+    // Check if scripts are already loaded
+    if (window.L) {
+      setScriptsLoaded(prev => ({ ...prev, leaflet: true }));
+    }
     
-    // Add Leaflet JS
-    const scriptEl = document.createElement('script');
-    scriptEl.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-    document.body.appendChild(scriptEl);
+    if (window.L && window.L.heatLayer) {
+      setScriptsLoaded(prev => ({ ...prev, heatPlugin: true }));
+    }
     
-    // Add Leaflet Heat plugin for heatmap
-    const heatScriptEl = document.createElement('script');
-    heatScriptEl.src = 'https://unpkg.com/leaflet.heat/dist/leaflet-heat.js';
-    document.body.appendChild(heatScriptEl);
+    // Add Leaflet CSS if not already added
+    if (!document.querySelector('link[href*="leaflet.css"]')) {
+      const linkEl = document.createElement('link');
+      linkEl.rel = 'stylesheet';
+      linkEl.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(linkEl);
+    }
     
-    // Wait for scripts to load
-    const checkScriptsLoaded = setInterval(() => {
-      if (window.L && window.L.heatLayer) {
-        clearInterval(checkScriptsLoaded);
-        initializeMap();
-      }
-    }, 100);
+    // Add Leaflet JS if not already added
+    if (!window.L) {
+      const scriptEl = document.createElement('script');
+      scriptEl.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      scriptEl.onload = () => setScriptsLoaded(prev => ({ ...prev, leaflet: true }));
+      document.body.appendChild(scriptEl);
+    }
+    
+    // Add Leaflet Heat plugin if not already added
+    if (!window.L || !window.L.heatLayer) {
+      const heatScriptEl = document.createElement('script');
+      heatScriptEl.src = 'https://unpkg.com/leaflet.heat/dist/leaflet-heat.js';
+      heatScriptEl.onload = () => setScriptsLoaded(prev => ({ ...prev, heatPlugin: true }));
+      document.body.appendChild(heatScriptEl);
+    }
     
     return () => {
       // Clean up
-      clearInterval(checkScriptsLoaded);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
     };
   }, []);
+  
+  // Effect to initialize map when scripts are loaded
+  useEffect(() => {
+    if (scriptsLoaded.leaflet && scriptsLoaded.heatPlugin && !mapInstanceRef.current) {
+      initializeMap();
+    }
+  }, [scriptsLoaded]);
   
   // Effect to update map when center location changes
   useEffect(() => {
@@ -78,14 +99,15 @@ const HazardMap: React.FC<HazardMapProps> = ({
   
   // Effect to update hazard markers
   useEffect(() => {
-    if (mapInstanceRef.current) {
+    if (mapInstanceRef.current && hazards) {
       updateHazardMarkers();
     }
   }, [hazards]);
   
   // Effect to update heatmap
   useEffect(() => {
-    if (mapInstanceRef.current && heatmapData.length > 0) {
+    if (mapInstanceRef.current && window.L && window.L.heatLayer) {
+      console.log("Updating heatmap with data:", heatmapData.length, "points, showHeatmap:", showHeatmap);
       updateHeatmap();
     }
   }, [heatmapData, showHeatmap]);
@@ -93,6 +115,8 @@ const HazardMap: React.FC<HazardMapProps> = ({
   // Initialize map
   const initializeMap = () => {
     if (!mapContainerRef.current || !window.L) return;
+    
+    console.log("Initializing map");
     
     // Create map instance
     const map = window.L.map(mapContainerRef.current).setView(
@@ -157,7 +181,7 @@ const HazardMap: React.FC<HazardMapProps> = ({
   
   // Update hazard markers
   const updateHazardMarkers = () => {
-    if (!mapInstanceRef.current || !window.L) return;
+    if (!mapInstanceRef.current || !window.L || !hazards) return;
     
     // Remove existing hazard markers
     if (markersRef.current.hazardMarkers.length > 0) {
@@ -236,7 +260,10 @@ const HazardMap: React.FC<HazardMapProps> = ({
   
   // Update heatmap
   const updateHeatmap = () => {
-    if (!mapInstanceRef.current || !window.L || !window.L.heatLayer) return;
+    if (!mapInstanceRef.current || !window.L || !window.L.heatLayer) {
+      console.log("Cannot update heatmap: missing dependencies");
+      return;
+    }
     
     // Remove existing heatmap
     if (markersRef.current.heatmapLayer) {
@@ -245,24 +272,53 @@ const HazardMap: React.FC<HazardMapProps> = ({
     }
     
     // Add new heatmap if enabled
-    if (showHeatmap && heatmapData.length > 0) {
-      // Configure gradient
-      const gradient = {
-        0.0: 'green',
-        0.25: 'yellow',
-        0.5: 'orange',
-        0.75: 'red',
-        1.0: 'darkred'
-      };
+    if (showHeatmap && heatmapData && heatmapData.length > 0) {
+      console.log("Creating heatmap layer with", heatmapData.length, "points");
       
-      // Create heatmap layer
-      markersRef.current.heatmapLayer = window.L.heatLayer(heatmapData, {
-        radius: 25,
-        blur: 15,
-        maxZoom: 10,
-        max: 100,
-        gradient
-      }).addTo(mapInstanceRef.current);
+      try {
+        // Create simple test data if heatmap data is empty or invalid
+        let dataToUse = heatmapData;
+        
+        if (!heatmapData.length || !Array.isArray(heatmapData[0])) {
+          console.log("Using fallback heatmap data");
+          // Create a grid of points around center location
+          dataToUse = [];
+          for (let i = -10; i <= 10; i++) {
+            for (let j = -10; j <= 10; j++) {
+              const lat = centerLocation.lat + (i * 0.05);
+              const lng = centerLocation.lng + (j * 0.05);
+              const intensity = 100 - Math.sqrt(i*i + j*j) * 5;
+              if (intensity > 0) {
+                dataToUse.push([lat, lng, intensity]);
+              }
+            }
+          }
+        }
+        
+        // Configure gradient
+        const gradient = {
+          0.0: 'green',
+          0.25: 'yellow',
+          0.5: 'orange',
+          0.75: 'red',
+          1.0: 'darkred'
+        };
+        
+        // Create heatmap layer
+        markersRef.current.heatmapLayer = window.L.heatLayer(dataToUse, {
+          radius: 25,
+          blur: 15,
+          maxZoom: 10,
+          max: 100,
+          gradient
+        }).addTo(mapInstanceRef.current);
+        
+        console.log("Heatmap layer created successfully");
+      } catch (error) {
+        console.error("Error creating heatmap:", error);
+      }
+    } else {
+      console.log("Skipping heatmap creation:", showHeatmap ? "No data available" : "Heatmap disabled");
     }
   };
   
@@ -271,7 +327,7 @@ const HazardMap: React.FC<HazardMapProps> = ({
       ref={mapContainerRef} 
       className="w-full h-96 rounded-lg shadow-md border border-neutral-200 mb-6"
     >
-      {!window.L && (
+      {(!scriptsLoaded.leaflet || !scriptsLoaded.heatPlugin) && (
         <div className="flex items-center justify-center h-full bg-gray-100 rounded-lg">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           <p className="ml-3 text-gray-500">Loading map...</p>

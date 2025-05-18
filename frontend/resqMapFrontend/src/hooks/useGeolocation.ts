@@ -3,17 +3,20 @@ import { useState, useEffect } from 'react';
 interface GeolocationState {
   loading: boolean;
   error: string | null;
-  location: { lat: number; lng: number } | null;
+  location: {
+    lat: number;
+    lng: number;
+  } | null;
 }
 
 export const useGeolocation = () => {
   const [state, setState] = useState<GeolocationState>({
-    loading: false,
+    loading: true,
     error: null,
     location: null,
   });
 
-  const requestGeolocation = () => {
+  useEffect(() => {
     if (!navigator.geolocation) {
       setState({
         loading: false,
@@ -23,7 +26,48 @@ export const useGeolocation = () => {
       return;
     }
 
-    setState(prev => ({ ...prev, loading: true, error: null }));
+    const successHandler = (position: GeolocationPosition) => {
+      setState({
+        loading: false,
+        error: null,
+        location: {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        },
+      });
+    };
+
+    const errorHandler = (error: GeolocationPositionError) => {
+      setState({
+        loading: false,
+        error: error.message,
+        location: null,
+      });
+    };
+
+    const options = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0,
+    };
+
+    navigator.geolocation.getCurrentPosition(
+      successHandler,
+      errorHandler,
+      options
+    );
+
+    return () => {
+      // Cleanup if needed
+    };
+  }, []);
+
+  const requestGeolocation = () => {
+    setState({
+      loading: true,
+      error: null,
+      location: null,
+    });
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
@@ -39,25 +83,16 @@ export const useGeolocation = () => {
       (error) => {
         setState({
           loading: false,
-          error: getGeolocationErrorMessage(error),
+          error: error.message,
           location: null,
         });
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
     );
-  };
-
-  const getGeolocationErrorMessage = (error: GeolocationPositionError): string => {
-    switch (error.code) {
-      case error.PERMISSION_DENIED:
-        return 'User denied the request for geolocation';
-      case error.POSITION_UNAVAILABLE:
-        return 'Location information is unavailable';
-      case error.TIMEOUT:
-        return 'The request to get user location timed out';
-      default:
-        return 'An unknown error occurred';
-    }
   };
 
   return { ...state, requestGeolocation };
