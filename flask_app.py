@@ -363,6 +363,32 @@ def get_events():
     
     return jsonify(events)
 
+@app.route('/api/offline/toggle', methods=['POST'])
+def toggle_offline_mode():
+    """Toggle offline mode"""
+    global OFFLINE_MODE
+    
+    try:
+        data = request.json
+        if data is None:
+            return jsonify({
+                "offline_mode": OFFLINE_MODE
+            })
+            
+        enable = data.get('enable', not OFFLINE_MODE)
+        OFFLINE_MODE = enable
+        
+        return jsonify({
+            "offline_mode": OFFLINE_MODE
+        })
+    
+    except Exception as e:
+        print(f"Error toggling offline mode: {str(e)}")
+        return jsonify({
+            "error": str(e),
+            "offline_mode": OFFLINE_MODE
+        }), 500
+
 @app.route('/api/analyze_area', methods=['POST'])
 def analyze_area():
     try:
